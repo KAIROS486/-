@@ -146,6 +146,7 @@ body.show-ans .ans-circle{display:inline-block}
 .toon .cut-img svg{width:100%;height:auto;max-height:260px;display:block}
 .toon .cut-img img{width:100%;height:auto;display:block;border-radius:0}
 .toon .img-fail{padding:24px 12px;font-size:11.5px;color:var(--gray);text-align:center;line-height:1.6}
+.toon-note{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:8px;padding:9px 12px;font-size:12px;line-height:1.55;margin-bottom:10px}
 .toon .cut-cap{padding:8px 10px;border-top:1px solid var(--rule)}
 .toon .cut-cap .en{font-family:'Noto Serif KR',Georgia,serif;font-size:12px;line-height:1.4}
 .toon .cut-cap .ko{color:var(--green-d);font-size:11.5px;margin-top:2px;line-height:1.4}
@@ -164,10 +165,10 @@ body.show-ans .ans-circle{display:inline-block}
 /* ── 인쇄용 시험지 ── */
 #printRoot{display:none}
 @media print{
-  @page{size:A4;margin:13mm 11mm}
+  @page{size:A4;margin:0}
   body>*{display:none!important}
   body{background:#fff}
-  #printRoot{display:block!important}
+  #printRoot{display:block!important;padding:13mm 11mm}
   .pp-head{border-bottom:3px double var(--ink);padding-bottom:12px;margin-bottom:10px}
   .pp-head .eb{display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:#555}
   .pp-head h2{text-align:center;font-size:23px;font-weight:900;margin:8px 0 4px}
@@ -220,7 +221,6 @@ dialog input,dialog textarea{width:100%;border:1px solid var(--rule);border-radi
 dialog textarea{height:220px;line-height:1.6}
 dialog .row{display:flex;gap:8px;justify-content:flex-end}
 </style>
-  <script src="https://js.puter.com/v2/"></script>
 </head>
 <body>
 <header>
@@ -233,10 +233,11 @@ dialog .row{display:flex;gap:8px;justify-content:flex-end}
   <span class="spacer"></span>
   <div class="apibox">
     <select id="modelSel">
-      <option value="claude-sonnet-4-20250514">Sonnet 4</option>
+      <option value="claude-sonnet-4-6">Sonnet 4.6</option>
       <option value="claude-haiku-4-5-20251001">Haiku 4.5</option>
     </select>
     <input id="apiKey" type="password" placeholder="API 키 (Claude.ai에선 비워두기)">
+    <input id="geminiKey" type="password" placeholder="Gemini API 키 (나노바나나용)" style="width:170px">
   </div>
 </header>
 
@@ -299,10 +300,16 @@ dialog .row{display:flex;gap:8px;justify-content:flex-end}
         <span style="margin-left:auto;font-weight:600;font-size:12px;color:var(--gray);display:flex;align-items:center;gap:6px">
           4컷 만화 그림:
           <select id="toonStyle" class="numsel" style="font-size:12px">
-            <option value="nano">AI 이미지 · 나노바나나 (Gemini·무료)</option>
-            <option value="ai">AI 이미지 · Pollinations (Flux·무료)</option>
-            <option value="svg">SVG 일러스트 (Claude)</option>
+            <option value="ai">AI 이미지 (Gemini 키 있으면 나노바나나 · 없으면 Pollinations)</option>
+            <option value="svg">SVG 일러스트 (Claude · 네트워크 불필요)</option>
             <option value="none">만화 끄기</option>
+          </select>
+          그림 스타일:
+          <select id="toonArtStyle" class="numsel" style="font-size:12px">
+            <option value="disney">디즈니 스타일</option>
+            <option value="ghibli">지브리 스타일</option>
+            <option value="pixar">픽사 스타일</option>
+            <option value="webtoon">명랑만화 스타일</option>
           </select>
         </span>
         <button class="tool" id="mSelAll">전체 선택</button>
@@ -475,6 +482,29 @@ function selectedPassages(){
   }
   return [...selP].map(passageById).filter(Boolean);
 }
+/* ════════ API 키 PC당 1회 저장 (localStorage, 기기별 보관) ════════ */
+(function(){
+  try{
+    const savedKey = localStorage.getItem('yuil:apiKey');
+    if(savedKey) $('apiKey').value = savedKey;
+    const savedGemini = localStorage.getItem('yuil:geminiKey');
+    if(savedGemini) $('geminiKey').value = savedGemini;
+  }catch(e){}
+  $('apiKey').addEventListener('change', ()=>{
+    try{
+      const v=$('apiKey').value.trim();
+      if(v) localStorage.setItem('yuil:apiKey', v);
+      else localStorage.removeItem('yuil:apiKey');
+    }catch(e){}
+  });
+  $('geminiKey').addEventListener('change', ()=>{
+    try{
+      const v=$('geminiKey').value.trim();
+      if(v) localStorage.setItem('yuil:geminiKey', v);
+      else localStorage.removeItem('yuil:geminiKey');
+    }catch(e){}
+  });
+})();
 function updateInfo(){
   const n = selectedPassages().length;
   $('genInfo').innerHTML = `선택 지문 <b>${n}</b>개 · 생성 문제 <b>${genItems.length}</b>개`;
@@ -566,7 +596,7 @@ function renderModeGrid(){
 
 /* ════════ Claude API ════════ */
 function repairJSON(t){
-  // 잘린 JSON 복구 시도: 열린 문자열 닫기 → 열린 괄호 닫기
+  // 1차: 잘린 JSON 복구 시도: 열린 문자열 닫기 → 열린 괄호 닫기
   let inStr=false, esc=false, stack=[];
   for(const ch of t){
     if(esc){esc=false;continue;}
@@ -581,6 +611,36 @@ function repairJSON(t){
   if(inStr) fixed+='"';
   fixed=fixed.replace(/,\s*$/,'');
   while(stack.length){ fixed += (stack.pop()==='{'?'}':']'); }
+  try{ JSON.parse(fixed); return fixed; }catch(_){ /* fall through */ }
+
+  // 2차: 최상위 키별로 배열을 찾아, 파싱 가능한 마지막 원소까지만 잘라서 복구
+  // {"cuts":[ {...}, {...}, <broken> ]} 형태에서 broken 원소를 제거
+  const arrMatch = t.match(/^(\s*\{\s*"[^"]+"\s*:\s*\[)([\s\S]*)$/);
+  if(arrMatch){
+    const head = arrMatch[1];
+    const body = arrMatch[2];
+    // body를 최상위 콤마 기준으로 객체 단위 분할
+    let depth=0, inS=false, escp=false, items=[], cur='';
+    for(const ch of body){
+      if(escp){cur+=ch; escp=false; continue;}
+      if(ch==='\\'){cur+=ch; escp=true; continue;}
+      if(ch==='"'){inS=!inS; cur+=ch; continue;}
+      if(!inS){
+        if(ch==='{'||ch==='['){ depth++; cur+=ch; continue; }
+        if(ch==='}'||ch===']'){ depth--; cur+=ch;
+          if(depth===0){ items.push(cur); cur=''; }
+          continue;
+        }
+        if(ch===',' && depth===0){ continue; }
+      }
+      cur+=ch;
+    }
+    const valid = items.filter(it=>{ try{ JSON.parse(it); return true; }catch(_){ return false; } });
+    if(valid.length){
+      const rebuilt = head + valid.join(',') + ']}';
+      try{ JSON.parse(rebuilt); return rebuilt; }catch(_){}
+    }
+  }
   return fixed;
 }
 function asciiSafe(s){
@@ -595,12 +655,15 @@ async function callClaude(prompt, system, maxTokens){
   }
   const headers = {'Content-Type':'application/json'};
   if(key){ headers['x-api-key']=key; headers['anthropic-version']='2023-06-01'; headers['anthropic-dangerous-direct-browser-access']='true'; }
+  const VALID_MODELS = ['claude-sonnet-4-6','claude-haiku-4-5-20251001'];
+  let modelId = $('modelSel').value;
+  if(!VALID_MODELS.includes(modelId)){ modelId='claude-sonnet-4-6'; $('modelSel').value=modelId; }
   let lastErr;
   for(let attempt=0; attempt<2; attempt++){
     try{
       const res = await fetch('https://api.anthropic.com/v1/messages',{
         method:'POST', headers,
-        body: JSON.stringify({ model: $('modelSel').value, max_tokens: maxTokens||3000,
+        body: JSON.stringify({ model: modelId, max_tokens: maxTokens||3000,
           system, messages:[{role:'user',content:prompt}] })
       });
       if(!res.ok){
@@ -757,8 +820,13 @@ $('toggleAns').onclick=e=>{document.body.classList.toggle('show-ans');e.target.c
 const SYS_A = `너는 한국 고등학교 영어 지문 분석 자료 제작 전문가다. 학생 배포용 분석지를 만든다. 설명은 해라체로 작성한다. 반드시 JSON 객체 하나만 출력하며, 줄바꿈·들여쓰기 없이 한 줄로 압축해 출력한다.`;
 const SYS_TOON = `너는 영어 지문을 4컷 만화로 요약하는 전문 일러스트레이터다. 막대 인물이나 단순 도형이 아니라, 입체감과 음영이 있는 사실적인 벡터 일러스트를 인라인 SVG로 그린다. 다음을 적극 활용한다: 선형 그라데이션(linearGradient)과 방사형 그라데이션(radialGradient)으로 명암·하늘·빛 표현, 겹치는 도형으로 원근감, 부드러운 그림자(타원형 ellipse를 반투명 검정으로), 풍부한 배경(지평선·건물·나무·실내 가구 등), 사람은 머리·몸통·팔다리·표정(눈·눈썹·입)을 갖춘 형태로 비례 있게, 사물은 디테일(질감선·하이라이트)을 살려 그린다. 전체적으로 따뜻하고 깔끔한 교과서 삽화 또는 그림책 톤을 유지한다. 지문의 흐름(도입→전개→전환/예시→결론)을 4개의 장면으로 압축한다. 각 컷에는 영어 한 줄 캡션과 한국어 한 줄 설명을 넣는다. 반드시 JSON 객체 하나만, 줄바꿈 없이 한 줄로 압축해 출력한다.`;
 const SYS_TOON_AI = `너는 영어 지문을 4컷 만화로 시각화하기 위한 장면 기획자다. 각 컷마다, 사실적인 일러스트 이미지 생성 모델에 넣을 영어 이미지 프롬프트(image prompt)를 만든다. 프롬프트는 장면·인물·배경·분위기·구도를 묘사하는 영어 명사구 나열로 25단어 내외, 사진풍이 아니라 따뜻한 디지털 일러스트/그림책 삽화 스타일을 명시한다. 지문 흐름(도입→전개→전환/예시→결론)을 4장면으로 압축한다. 반드시 JSON 하나만 한 줄로 출력한다.`;
-const TOON_AI_SPEC = `위 지문 내용을 4컷 만화로 시각화한다. 각 컷에 대해 (1) prompt: 영어 이미지 프롬프트(장면·인물·배경 묘사, 25단어 내외, 'warm storybook digital illustration' 스타일 포함), (2) en: 영어 한 줄 캡션, (3) ko: 한국어 한 줄 설명을 만들어라. JSON 스키마: {"cuts":[{"prompt":"...english image prompt...","en":"...","ko":"..."}, ...정확히 4개...]} 한 줄로 압축 출력하라.`;
-const TOON_SPEC = `위 지문의 내용을 사실적인 4컷 만화로 요약하라. 각 컷은 가로 400 세로 300 좌표계(viewBox='0 0 400 300')의 <svg>로 그린다. [묘사 요구] (1) 배경을 반드시 그려라 — 하늘/실내/자연 등 장면 맥락이 드러나게 그라데이션 배경과 지평선, 그리고 소품 2~3개 이상. (2) 인물이 등장하면 막대기 모양이 아니라 머리·몸통·팔·다리와 얼굴 표정(눈·입)을 갖춘 비례 있는 형태로 그려라. (3) 그라데이션(<defs><linearGradient>/<radialGradient>)으로 명암과 입체감을 주고, 인물·사물 아래에 반투명 그림자 타원을 깔아라. (4) 색은 자연스럽고 조화로운 팔레트를 자유롭게 쓰되 과하게 쨍하지 않게 한다. 윤곽선은 #2b2b3a 계열로 가늘게. (5) 각 컷에 장면을 설명하는 짧은 영어 문구나 인물 대사를 말풍선(둥근 사각형+꼬리)에 8~12단어로 1개 넣어라. 4컷은 지문의 도입·전개·전환(예시)·결론에 대응한다. JSON 스키마: {"cuts":[{"svg":"<svg viewBox='0 0 400 300' xmlns='http://www.w3.org/2000/svg'><defs>...</defs>...풍부한 도형과 그라데이션, 인물, 배경, 말풍선...</svg>","en":"영어 한 줄 캡션","ko":"한국어 한 줄 설명"}, ...정확히 4개...]} 각 SVG는 width/height 속성 없이 viewBox만 쓰고, 디테일을 충분히 넣되 한 컷당 SVG 요소가 너무 많아 응답이 잘리지 않도록 핵심 요소 위주로 그려라. 전체 JSON은 한 줄로 압축 출력하라.`;
+function toonAiSpec(){
+  return `위 지문 내용을 4컷 만화로 시각화한다. 각 컷에 대해 (1) prompt: 영어 이미지 프롬프트(장면·인물·배경 묘사, 25단어 내외, '${TOON_ART_STYLES[$('toonArtStyle').value]||TOON_ART_STYLES.disney}' 스타일 포함), (2) en: 영어 한 줄 캡션, (3) ko: 한국어 한 줄 설명을 만들어라. JSON 스키마: {"cuts":[{"prompt":"...english image prompt...","en":"...","ko":"..."}, ...정확히 4개...]} 한 줄로 압축 출력하라.`;
+}
+function toonSvgSpec(){
+  const styleName = {disney:'디즈니 애니메이션', ghibli:'스튜디오 지브리 애니메이션', pixar:'픽사 3D 애니메이션', webtoon:'명랑만화/웹툰'}[$('toonArtStyle').value] || '디즈니 애니메이션';
+  return `위 지문의 내용을 사실적인 4컷 만화로 요약하라. 각 컷은 가로 400 세로 300 좌표계(viewBox='0 0 400 300')의 <svg>로 그린다. 전체 그림 톤은 ${styleName} 스타일을 SVG로 표현하라. [묘사 요구] (1) 배경을 반드시 그려라 — 하늘/실내/자연 등 장면 맥락이 드러나게 그라데이션 배경과 지평선, 그리고 소품 2~3개 이상. (2) 인물이 등장하면 막대기 모양이 아니라 머리·몸통·팔·다리와 얼굴 표정(눈·입)을 갖춘 비례 있는 형태로 그려라. (3) 그라데이션(<defs><linearGradient>/<radialGradient>)으로 명암과 입체감을 주고, 인물·사물 아래에 반투명 그림자 타원을 깔아라. (4) 색은 자연스럽고 조화로운 팔레트를 자유롭게 쓰되 과하게 쨍하지 않게 한다. 윤곽선은 #2b2b3a 계열로 가늘게. (5) 각 컷에 장면을 설명하는 짧은 영어 문구나 인물 대사를 말풍선(둥근 사각형+꼬리)에 8~12단어로 1개 넣어라. 4컷은 지문의 도입·전개·전환(예시)·결론에 대응한다. JSON 스키마: {"cuts":[{"svg":"<svg viewBox='0 0 400 300' xmlns='http://www.w3.org/2000/svg'><defs>...</defs>...풍부한 도형과 그라데이션, 인물, 배경, 말풍선...</svg>","en":"영어 한 줄 캡션","ko":"한국어 한 줄 설명"}, ...정확히 4개...]} 각 SVG는 width/height 속성 없이 viewBox만 쓰고, 디테일을 충분히 넣되 한 컷당 SVG 요소가 너무 많아 응답이 잘리지 않도록 핵심 요소 위주로 그려라. 전체 JSON은 한 줄로 압축 출력하라.`;
+}
 const MODE_SPECS = {
  trans:`영어 직독직해 자료를 만들어라. 각 문장을 의미 단위(주어·동사·목적어·보어·수식어구)로 끊어 분석한다. 규칙: (1) 문장 성분을 span으로 감싸라 — 주어 <span class=\\"su\\">, 동사(술어) <span class=\\"v\\">, 목적어 <span class=\\"o\\">, 보어 <span class=\\"c\\">, 수식어구(전치사구·분사구·관계절·to부정사 등) <span class=\\"mod\\">. 접속사·관계사는 그대로 둔다. (2) 의미 단위 사이는 / 로 끕어 읽기 표시한다. (3) 각 영어 문장 바로 아래 줄에, 같은 끕어 읽기 순서대로 끊은 직독직해를 단다. JSON: {"html":"<div class=\\"tr\\"><p class=\\"en\\"><span class=\\"su\\">The boy</span> / <span class=\\"v\\">read</span> / <span class=\\"o\\">the book</span> / <span class=\\"mod\\">in the library</span>.</p><p class=\\"ko\\">그 소년은 / 읽었다 / 그 책을 / 도서관에서.</p></div>...문장 수만큼 반복..."} HTML은 들여쓰기·줄바꿈 없이 압축해 작성하라.`,
  syntax:`이 지문에서 시험(수능·내신 어법)에 출제될 가능성이 높은 핵심 구문 4~6개를 골라 분석하라. 다음 어법 출제 포인트(『어법끝』 기출 빈출 항목) 중 지문에 실제 등장하는 것만 고르라:\n__GP__\n각 구문마다 ① 해당 영어 구문(지문에서 인용), ② 관련 어법 포인트 이름, ③ 구조·판단 근거(왜 그 형태가 맞는지), ④ 시험에서 이 포인트가 어떻게 오답으로 함정 나올 수 있는지를 해라체로 서술하라. JSON: {"html":"<table><tr><th>핵심 구문</th><th>어법 포인트</th><th>분석 · 함정 주의</th></tr>...구문별 행..."} HTML은 압축해 작성하라.`,
@@ -768,8 +836,18 @@ const MODE_SPECS = {
  back:`지문 소재의 배경지식을 학생 눈높이로 해설하라(6~8문장). JSON: {"html":"..."}`,
  tf:`지문 내용에 대한 True/False 진술 10개를 만들어라. 1~5번은 영어 진술, 6~10번은 한국어 진술이며, 참과 거짓을 적절히 섞어라(각각 4~6개). 문항(html)에는 정답을 표시하지 말고, 정답·근거는 expl에 따로 담는다. JSON: {"html":"<ol class=\\"tf\\"><li>영어 진술 1 <span class=\\"tfbox\\">( T / F )</span></li>...5개...<li>한국어 진술 6 <span class=\\"tfbox\\">( T / F )</span></li>...10개...</ol>", "expl":"<ol class=\\"tfans\\"><li><b>T</b> — 근거 해설(해라체)</li>...10개..."} expl의 각 항목은 정답(T/F)과 지문 근거를 해라체로 1~2문장 서술하라. HTML은 압축해 작성하라.`,
 };
+const TOON_ART_STYLES = {
+  disney:'Disney animation style, vibrant colors, expressive characters, classic storybook illustration',
+  ghibli:'Studio Ghibli anime style, soft watercolor textures, gentle lighting, whimsical hand-drawn background',
+  pixar:'Pixar 3D animation style, rounded characters, cinematic lighting, polished render',
+  webtoon:'Korean comic webtoon style, bold outlines, flat bright colors, comedic exaggerated expressions'
+};
+function toonStyleSuffix(){
+  const key = $('toonArtStyle') ? $('toonArtStyle').value : 'disney';
+  return ', ' + (TOON_ART_STYLES[key] || TOON_ART_STYLES.disney);
+}
 function pollImg(prompt, seed){
-  const styled = prompt + ', warm storybook digital illustration, soft lighting, clean lines, children book art style';
+  const styled = prompt + toonStyleSuffix();
   const u = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(styled)
     + '?width=512&height=384&nologo=true&seed=' + (seed||Math.floor(Math.random()*99999)) + '&model=flux';
   return u;
@@ -784,6 +862,35 @@ function toonAIHTML(cuts){
       `<div class="cut-cap"><p class="en">${c.en||''}</p><p class="ko">${c.ko||''}</p></div></div>`;
   }).join('')+`</div>`;
 }
+async function geminiTxt2Img(prompt, retries){
+  const key = asciiSafe($('geminiKey').value);
+  if(!key) throw new Error('Gemini API 키가 입력되지 않았습니다. 우측 상단에 Gemini API 키를 입력하세요.');
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent?key=' + encodeURIComponent(key);
+  let lastErr;
+  for(let i=0; i<=(retries||1); i++){
+    try{
+      const res = await fetch(url, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ contents:[{ parts:[{ text: prompt }] }] })
+      });
+      if(!res.ok){
+        const t = await res.text();
+        throw new Error('Gemini API 오류 ('+res.status+'): '+t.slice(0,200));
+      }
+      const data = await res.json();
+      const parts = data?.candidates?.[0]?.content?.parts || [];
+      const imgPart = parts.find(p=>p.inlineData && p.inlineData.data);
+      if(!imgPart) throw new Error('Gemini 응답에 이미지가 없습니다.');
+      const mime = imgPart.inlineData.mimeType || 'image/png';
+      return `data:${mime};base64,${imgPart.inlineData.data}`;
+    }catch(e){
+      lastErr=e;
+      if(i<(retries||1)) await new Promise(r=>setTimeout(r,800));
+    }
+  }
+  throw lastErr;
+}
 async function toonPuterHTML(cuts, host){
   if(!cuts||!cuts.length) return;
   host.innerHTML = `<div class="toon">`+cuts.map((c,i)=>
@@ -791,12 +898,25 @@ async function toonPuterHTML(cuts, host){
     `<div class="cut-cap"><p class="en">${c.en||''}</p><p class="ko">${c.ko||''}</p></div></div>`).join('')+`</div>`;
   for(let i=0;i<cuts.length;i++){
     const slot = host.querySelector(`.cut-img[data-i="${i}"]`);
-    const styled = (cuts[i].prompt||cuts[i].en||'') + ', warm storybook digital illustration, soft lighting, clean lines, children book art style';
+    const styled = (cuts[i].prompt||cuts[i].en||'') + toonStyleSuffix();
+    const hasKey = !!asciiSafe($('geminiKey').value);
+    const usePoll = ()=>{
+      slot.innerHTML='';
+      const img=document.createElement('img');
+      img.loading='lazy'; img.src=pollImg(cuts[i].prompt||cuts[i].en||'', 1000+i); img.alt='cut '+(i+1);
+      img.onerror=()=>{ slot.innerHTML=''; const d=document.createElement('div'); d.className='img-fail'; d.textContent='이미지 로드 실패. 그림 스타일을 SVG로 바꿔보세요.'; slot.appendChild(d); };
+      slot.appendChild(img);
+    };
+    if(!hasKey){ usePoll(); continue; }   // Gemini 키 없으면 바로 Pollinations
     try{
-      if(!window.puter || !puter.ai || !puter.ai.txt2img) throw new Error('Puter.js 로드 실패 (인터넷 연결 확인)');
-      const imgEl = await puter.ai.txt2img(styled, { model:'gemini-2.5-flash-image-preview' });
-      imgEl.setAttribute('loading','lazy'); slot.innerHTML=''; slot.appendChild(imgEl);
-    }catch(e){ slot.innerHTML = `<div class="img-fail">이미지 생성 실패: ${e.message||e}. 다른 그림 스타일을 선택해 보세요.</div>`; }
+      const dataUrl = await geminiTxt2Img(styled);
+      slot.innerHTML='';
+      const img=document.createElement('img');
+      img.loading='lazy'; img.src=dataUrl; img.alt='cut '+(i+1);
+      slot.appendChild(img);
+    }catch(e){
+      usePoll();   // Gemini 실패 시 Pollinations 폴백
+    }
   }
 }
 function toonHTML(cuts){
@@ -822,20 +942,18 @@ $('analBtn').onclick = async ()=>{
       try{
         let html='';
         let cuts=[];
-        if(toonMode==='ai'){
-          const tr=await callClaude(`[지문]\n${p.text}\n\n[과제] ${TOON_AI_SPEC}`, SYS_TOON_AI, 4000);
-          cuts=tr.cuts||[]; html=toonAIHTML(cuts);
-        }else if(toonMode==='nano'){
-          const tr=await callClaude(`[지문]\n${p.text}\n\n[과제] ${TOON_AI_SPEC}`, SYS_TOON_AI, 4000);
+        const isAI = (toonMode==='ai'||toonMode==='nano');
+        if(isAI){
+          const tr=await callClaude(`[지문]\n${p.text}\n\n[과제] ${toonAiSpec()}`, SYS_TOON_AI, 6000);
           cuts=tr.cuts||[];
         }else{
-          const tr=await callClaude(`[지문]\n${p.text}\n\n[과제] ${TOON_SPEC}`, SYS_TOON, 8000);
+          const tr=await callClaude(`[지문]\n${p.text}\n\n[과제] ${toonSvgSpec()}`, SYS_TOON, 8000);
           cuts=tr.cuts||[]; html=toonHTML(cuts);
         }
         const card=document.createElement('div'); card.className='acard';
         card.innerHTML=`<h4>📖 4컷 요약 만화 <span style="font-size:11px;color:#9aa39e;font-weight:500">${p.title}</span></h4><div class="abody">${html}</div>`;
         ld.replaceWith(card);
-        if(toonMode==='nano'){
+        if(isAI){
           const host=card.querySelector('.abody');
           await toonPuterHTML(cuts, host);
           html=host.innerHTML;
@@ -876,6 +994,10 @@ function ppHead(title, sub){
 function doPrint(html, withAns){
   $('printRoot').innerHTML=html;
   if(withAns) document.body.classList.add('print-ans');
+  if(!localStorage.getItem('yuil:printHintShown')){
+    alert('인쇄 대화상자에서 날짜·파일경로·페이지번호를 완전히 없애려면\n[추가 설정] → "머리글 및 바닥글" 체크를 해제하세요.\n(이 안내는 다시 표시되지 않습니다)');
+    try{ localStorage.setItem('yuil:printHintShown','1'); }catch(e){}
+  }
   window.print();
   document.body.classList.remove('print-ans');
 }
