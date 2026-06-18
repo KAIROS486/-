@@ -118,20 +118,18 @@ body.show-ans .ans-circle{display:inline-block}
 .acard .abody table{border-collapse:collapse;width:100%;margin:6px 0}
 .acard .abody td,.acard .abody th{border:1px solid var(--rule);padding:6px 9px;font-size:12.5px;text-align:left;vertical-align:top}
 .acard .abody th{background:var(--chip)}
-.abody .tr{margin:0 0 9px;padding-bottom:7px;border-bottom:1px dashed var(--rule)}
-.abody .tr .en{font-family:'Noto Serif KR',Georgia,serif;font-size:13px;line-height:1.55}
-.abody .tr .ko{color:var(--green-d);font-size:12.5px;margin-top:2px;line-height:1.5}
-.abody .tr .en span{padding:0 1px;border-radius:3px}
+.abody .tr{margin:0 0 13px;padding-bottom:9px;border-bottom:1px dashed var(--rule)}
+.abody .tr .il{display:flex;flex-wrap:wrap;align-items:flex-start;gap:2px 8px;font-family:'Noto Serif KR',Georgia,serif}
+.abody .tr .ic{display:inline-flex;flex-direction:column;align-items:flex-start;line-height:1.3;margin:0 8px 3px 0}
+.abody .tr .ic .en{font-size:13px}
+.abody .tr .ic .ko{font-size:11px;color:var(--green-d);margin-top:1px}
+.abody .tr .ic .tag{font-size:9.5px;color:#9aa39e;font-style:italic;margin-top:1px}
 .abody .tr .su{color:#1d4ed8;font-weight:700}
 .abody .tr .v{color:#c026a3;font-weight:700}
 .abody .tr .o{color:#047857;font-weight:700}
 .abody .tr .c{color:#b45309;font-weight:700}
 .abody .tr .mod{color:#6b7280}
-.abody .tr .ko .su{color:#1d4ed8}
-.abody .tr .ko .v{color:#c026a3}
-.abody .tr .ko .o{color:#047857}
-.abody .tr .ko .c{color:#b45309}
-.abody .tr .ko .mod{color:#6b7280}
+.abody .tr .gp{color:#be123c;font-weight:700}
 .tr-legend{font-size:11px;color:var(--gray);margin-bottom:8px;display:flex;gap:10px;flex-wrap:wrap}
 .tr-legend b{padding:1px 5px;border-radius:3px;color:#fff}
 .abody ol.tf{margin:4px 0 0 18px;line-height:1.9}
@@ -191,14 +189,18 @@ body.show-ans .ans-circle{display:inline-block}
   .pa-sec table{border-collapse:collapse;width:100%}
   .pa-sec td,.pa-sec th{border:1px solid #ccc;padding:5px 8px;font-size:11.8px;vertical-align:top}
   .pa-sec th{background:#f1f1ee}
-  .pa-sec .tr{margin:0 0 7px}
-  .pa-sec .tr .en{font-family:'Noto Serif KR',Georgia,serif;font-size:11.8px;line-height:1.5}
-  .pa-sec .tr .ko{font-size:11.5px;margin-top:1px;color:#1c6b4a}
+  .pa-sec .tr{margin:0 0 6px}
+  .pa-sec .tr .il{display:flex;flex-wrap:wrap;align-items:flex-start;gap:1px 6px;font-family:'Noto Serif KR',Georgia,serif}
+  .pa-sec .tr .ic{display:inline-flex;flex-direction:column;align-items:flex-start;line-height:1.2;margin:0 6px 2px 0}
+  .pa-sec .tr .ic .en{font-size:11px}
+  .pa-sec .tr .ic .ko{font-size:9.3px;color:#1c6b4a;margin-top:0}
+  .pa-sec .tr .ic .tag{font-size:8px;color:#888;font-style:italic;margin-top:0}
   .pa-sec .tr .su{color:#1d4ed8;font-weight:700}
   .pa-sec .tr .v{color:#c026a3;font-weight:700}
   .pa-sec .tr .o{color:#047857;font-weight:700}
   .pa-sec .tr .c{color:#b45309;font-weight:700}
   .pa-sec .tr .mod{color:#555}
+  .pa-sec .tr .gp{color:#9f1239;font-weight:700}
   .pa-sec ol.tf,.pa-sec ol.tfans{margin-left:16px;line-height:1.85}
   .pa-sec ol.tf li,.pa-sec ol.tfans li{font-size:11.8px}
   .pa-sec .tfbox{font-weight:700;margin-left:6px}
@@ -884,7 +886,7 @@ function toonSvgSpec(){
   return `위 지문의 내용을 사실적인 4컷 만화로 요약하라. 각 컷은 가로 400 세로 300 좌표계(viewBox='0 0 400 300')의 <svg>로 그린다. 전체 그림 톤은 ${styleName} 스타일을 SVG로 표현하라. [묘사 요구] (1) 배경을 반드시 그려라 — 하늘/실내/자연 등 장면 맥락이 드러나게 그라데이션 배경과 지평선, 그리고 소품 2~3개 이상. (2) 인물이 등장하면 막대기 모양이 아니라 머리·몸통·팔·다리와 얼굴 표정(눈·입)을 갖춘 비례 있는 형태로 그려라. (3) 그라데이션(<defs><linearGradient>/<radialGradient>)으로 명암과 입체감을 주고, 인물·사물 아래에 반투명 그림자 타원을 깔아라. (4) 색은 자연스럽고 조화로운 팔레트를 자유롭게 쓰되 과하게 쨍하지 않게 한다. 윤곽선은 #2b2b3a 계열로 가늘게. (5) 각 컷에 장면을 설명하는 짧은 영어 문구나 인물 대사를 말풍선(둥근 사각형+꼬리)에 8~12단어로 1개 넣어라. 4컷은 지문의 도입·전개·전환(예시)·결론에 대응한다. JSON 스키마: {"cuts":[{"svg":"<svg viewBox='0 0 400 300' xmlns='http://www.w3.org/2000/svg'><defs>...</defs>...풍부한 도형과 그라데이션, 인물, 배경, 말풍선...</svg>","en":"영어 한 줄 캡션","ko":"한국어 한 줄 설명"}, ...정확히 4개...]} 각 SVG는 width/height 속성 없이 viewBox만 쓰고, 디테일을 충분히 넣되 한 컷당 SVG 요소가 너무 많아 응답이 잘리지 않도록 핵심 요소 위주로 그려라. 전체 JSON은 한 줄로 압축 출력하라.`;
 }
 const MODE_SPECS = {
- trans:`영어 직독직해 자료를 만들어라. 각 문장을 의미 단위(주어·동사·목적어·보어·수식어구)로 끊어 분석한다. 규칙: (1) 문장 성분을 span으로 감싸라 — 주어 <span class=\\"su\\">, 동사(술어) <span class=\\"v\\">, 목적어 <span class=\\"o\\">, 보어 <span class=\\"c\\">, 수식어구(전치사구·분사구·관계절·to부정사 등) <span class=\\"mod\\">. 접속사·관계사는 그대로 둔다. (2) 의미 단위 사이는 / 로 끕어 읽기 표시한다. (3) 각 영어 문장 바로 아래 줄에, 같은 끕어 읽기 순서대로 끊은 직독직해를 단다. JSON: {"html":"<div class=\\"tr\\"><p class=\\"en\\"><span class=\\"su\\">The boy</span> / <span class=\\"v\\">read</span> / <span class=\\"o\\">the book</span> / <span class=\\"mod\\">in the library</span>.</p><p class=\\"ko\\">그 소년은 / 읽었다 / 그 책을 / 도서관에서.</p></div>...문장 수만큼 반복..."} HTML은 들여쓰기·줄바꿈 없이 압축해 작성하라.`,
+ trans:`영어 한줄해석(인터리니어 직독직해) 자료를 만들어라. 학생이 영어 원문 바로 아래에서 같은 위치의 한국어 뜻을 한눈에 확인하도록, 문장을 자연스러운 끊어 읽기 단위(3~6단어)로 나누고 각 단위의 영어 바로 아래에 그 단위의 한국어 해석을 붙인다(인터리니어 정렬). 규칙: (1) 각 의미 단위를 <span class=\\"ic\\"><span class=\\"en [su|v|o|c|mod|gp]\\">영어</span><span class=\\"ko\\">한국어</span></span> 형태로 감싼다 — su 주어, v 동사(술어), o 목적어, c 보어, mod 일반 수식어구(전치사구·to부정사 등), gp 핵심 구문 포인트(관계대명사절·분사구문·가정법·도치 등 시험에 자주 나오는 구조). (2) 한 문장의 모든 ic 단위를 <div class=\\"il\\">...</div>로 감싸고, 콤마·마침표 등 구두점과 단순 접속사는 별도 span 없이 직전 단위 바로 뒤에 일반 텍스트로 붙인다. (3) gp로 표시한 단위에는 ko 바로 다음에 <span class=\\"tag\\">(문법 설명)</span>을 추가해 그 구조가 무엇인지 한 줄로 짧게 설명한다 — 문장당 1~2곳, 가장 중요한 포인트에만 사용하고 과하게 달지 마라. JSON: {"html":"<div class=\\"tr\\"><div class=\\"il\\"><span class=\\"ic\\"><span class=\\"en su\\">The boy</span><span class=\\"ko\\">그 소년은</span></span> <span class=\\"ic\\"><span class=\\"en v\\">read</span><span class=\\"ko\\">읽었다</span></span> <span class=\\"ic\\"><span class=\\"en o\\">the book</span><span class=\\"ko\\">그 책을</span></span> <span class=\\"ic\\"><span class=\\"en mod\\">in the library</span><span class=\\"ko\\">도서관에서</span></span>.</div></div>...문장 수만큼 반복..."} gp+tag 예시: <span class=\\"ic\\"><span class=\\"en gp\\">that rises</span><span class=\\"ko\\">솟아오르는</span><span class=\\"tag\\">(주격 관계대명사)</span></span>. HTML은 들여쓰기·줄바꿈 없이 압축해 작성하라.`,
  syntax:`이 지문에서 시험(수능·내신 어법)에 출제될 가능성이 높은 핵심 구문 4~6개를 골라 분석하라. 다음 어법 출제 포인트(『어법끝』 기출 빈출 항목) 중 지문에 실제 등장하는 것만 고르라:\n__GP__\n각 구문마다 ① 해당 영어 구문(지문에서 인용), ② 관련 어법 포인트 이름, ③ 구조·판단 근거(왜 그 형태가 맞는지), ④ 시험에서 이 포인트가 어떻게 오답으로 함정 나올 수 있는지를 해라체로 서술하라. JSON: {"html":"<table><tr><th>핵심 구문</th><th>어법 포인트</th><th>분석 · 함정 주의</th></tr>...구문별 행..."} HTML은 압축해 작성하라.`,
  vocab:`핵심 어휘 10~14개를 정리하라. JSON: {"html":"<table><tr><th>어휘</th><th>뜻</th><th>유의어/파생어</th></tr>..."}`,
  summ:`주제문을 찾아 인용하고 글 전체를 3문장 이내로 요약하라. 한줄 요지(한국어)도 제시. JSON: {"html":"..."}`,
@@ -1025,7 +1027,7 @@ $('analBtn').onclick = async ()=>{
         let mspec = MODE_SPECS[m];
         if(mspec.includes('__GP__')) mspec = mspec.replace('__GP__', gpGuide());
         const r=await callClaude(`[지문]\n${p.text}\n\n[과제] ${mspec}`, SYS_A, 6000);
-        const legend = (m==='trans') ? `<div class="tr-legend"><b style="background:#1d4ed8">주어</b><b style="background:#c026a3">동사</b><b style="background:#047857">목적어</b><b style="background:#b45309">보어</b><b style="background:#6b7280">수식어</b></div>` : '';
+        const legend = (m==='trans') ? `<div class="tr-legend"><b style="background:#1d4ed8">주어</b><b style="background:#c026a3">동사</b><b style="background:#047857">목적어</b><b style="background:#b45309">보어</b><b style="background:#6b7280">수식어</b><b style="background:#be123c">구문 포인트</b></div>` : '';
         const itemHtml = legend + r.html;
         const item={src:p.title, mode:m, name:md.name, html:itemHtml, expl:r.expl||''};
         analItems.push(item);
